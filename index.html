@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PS4 Secure Shield | By Amir</title>
+<style>
+    :root{--bg-color:#f4f1ea;--card-bg:#fffdf9;--accent-color:#c29b61;--text-primary:#2c2925;
+    --text-secondary:#7a7369;--success-color:#3b7a57;--danger-color:#a3453b;
+    --border-color:rgba(194,155,97,.25);}
+    *{box-sizing:border-box;margin:0;padding:0;font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;}
+    body{background-color:var(--bg-color);color:var(--text-primary);min-height:100vh;padding:24px 12px;}
+    .container{background:var(--card-bg);border:1px solid var(--border-color);padding:34px 28px;
+    border-radius:18px;text-align:center;width:100%;max-width:600px;margin:0 auto;
+    box-shadow:0 10px 30px rgba(138,122,102,.08);}
+    h1{font-size:24px;margin-bottom:8px;letter-spacing:.5px;}
+    .subtitle{font-size:13px;color:var(--text-secondary);margin-bottom:22px;}
+    .notice{background:rgba(194,155,97,.10);border:1px solid var(--border-color);
+    border-right:3px solid var(--accent-color);border-radius:8px;padding:12px 14px;
+    font-size:12.5px;line-height:1.8;color:var(--text-secondary);text-align:right;margin-bottom:24px;}
+    .notice b{color:var(--text-primary);}
+    .status-box{padding:16px;border-radius:10px;background:#ece5dc;border:1px solid var(--border-color);
+    margin:20px 0;font-size:14px;line-height:1.7;}
+    .status-box.ok{background:rgba(59,122,87,.10);border-color:rgba(59,122,87,.35);
+    color:var(--success-color);font-weight:bold;}
+    .status-box.fail{background:rgba(163,69,59,.08);border-color:rgba(163,69,59,.35);color:var(--danger-color);}
+    .btn{background:linear-gradient(135deg,#d4af37,#b38f27);color:#fff;border:none;
+    padding:15px 30px;font-size:16px;font-weight:bold;border-radius:10px;cursor:pointer;
+    box-shadow:0 4px 12px rgba(194,155,97,.2);width:100%;max-width:360px;}
+    .btn:disabled{opacity:.45;cursor:default;}
+    .mini{margin-top:14px;font-size:11.5px;color:var(--text-secondary);line-height:1.8;}
+    .footer{margin-top:26px;font-size:13px;color:var(--text-secondary);
+    border-top:1px solid var(--border-color);padding-top:15px;}
+    .footer span{color:var(--accent-color);font-weight:bold;}
+    .goldhen-notification{position:fixed;top:-140px;left:24px;background:#1e1e1e;color:#fff;
+    padding:14px 22px;border-radius:8px;box-shadow:0 10px 25px rgba(0,0,0,.25);
+    border-left:4px solid #d4af37;z-index:1000;direction:ltr;text-align:left;max-width:310px;
+    transition:top .25s linear;}
+    .goldhen-notification.show{top:24px;}
+    .notif-icon{float:left;margin-right:12px;font-size:20px;background:#d4af37;color:#1e1e1e;
+    width:36px;height:36px;line-height:36px;text-align:center;border-radius:50%;font-weight:bold;}
+    .notif-text{overflow:hidden;}
+    .notif-text .title{font-size:13px;font-weight:bold;color:#d4af37;}
+    .notif-text .desc{font-size:12px;color:#ccc;margin-top:2px;}
+    .trap{position:fixed;bottom:-140px;right:24px;background:#1e1e1e;color:#ff6b6b;
+    font-family:Consolas,monospace;font-size:12px;padding:12px 16px;border-radius:8px;
+    border-left:4px solid #a3453b;z-index:1001;direction:ltr;text-align:left;max-width:330px;
+    transition:bottom .2s linear;}
+    .trap.show{bottom:24px;}
+</style>
+</head>
+<body>
+
+<div class="goldhen-notification" id="goldhenNotif">
+    <div class="notif-icon">⚡</div>
+    <div class="notif-text">
+        <div class="title">GoldHEN Shield Loaded</div>
+        <div class="desc" id="notifDesc">Environment Secured Successfully!</div>
+    </div>
+</div>
+
+<div class="trap" id="trapBox">
+    [ERROR] System Update Blocked &amp; Isolated by Amir
+</div>
+
+<div class="container">
+    <h1>PS4 Network Shield</h1>
+    <p class="subtitle">Complete isolation protocol against Sony official servers</p>
+
+    <div class="notice">
+        <b>داخل المتصفح:</b> هذه الصفحة تصادر كل اتصال بنطاقات Sony (fetch / XHR / WebSocket / روابط / نوافذ).
+        <b>على النظام:</b> الحظر الدائم يحتاج DNS أو الراوتر — وهذا الحد التقني الصادق.
+    </div>
+
+    <div class="status-box" id="statusText">
+        System Status: Idle — Shield Not Armed
+    </div>
+
+    <button class="btn" id="activateBtn" onclick="armShield()">تفعيل الحماية القصوى / Arm Maximum Shield</button>
+
+    <div class="mini" id="logLine">Hooks: pending</div>
+
+    <div class="footer">
+        Designed &amp; Developed by <span>Amir</span>
+    </div>
+</div>
+
+<script>
+(function () {
+    "use strict";
+
+    var BLOCKED = [
+        "playstation.net", "playstation.com", "sony.com", "sonyentertainmentnetwork.com",
+        "np.dl.playstation.net", "sp-int.playstation.net", "sec.np.dl.playstation.net",
+        "update.playstation.net", "ps4.updptl", "sf.updptl", "dcs.updptl",
+        "fupgw.playstation.net", "gs-sec.ww.np.dl.playstation.net"
+    ];
+
+    var armed = false, blockedCount = 0, logLine, trapBox, statusBox;
+
+    function isBlocked(url) {
+        if (!url) return false;
+        var u = String(url).toLowerCase();
+        for (var i = 0; i < BLOCKED.length; i++) {
+            if (u.indexOf(BLOCKED[i]) !== -1) return true;
+        }
+        return false;
+    }
+
+    function flashTrap() {
+        if (!trapBox) return;
+        trapBox.className = "trap show";
+        setTimeout(function () { trapBox.className = "trap"; }, 3500);
+    }
+
+    function registerBlock(url, via) {
+        blockedCount++;
+        if (logLine) {
+            logLine.innerHTML = "Blocked: <b>" + blockedCount + "</b> request(s) · last via " + via;
+        }
+        if (window.console && console.warn) {
+            console.warn("[Amir Shield] blocked " + via + ": " + url);
+        }
+        flashTrap();
+    }
+
+    function onReady() {
+        statusBox = document.getElementById("statusText");
+        logLine = document.getElementById("logLine");
+        trapBox = document.getElementById("trapBox");
+    }
+
+    /* ============ اعتراض fetch ============ */
+    var nativeFetch = window.fetch;
+    if (nativeFetch) {
+        window.fetch = function (input, init) {
+            var url = (typeof input === "string") ? input : (input && input.url ? input.url : "");
+            if (armed && isBlocked(url)) {
+                registerBlock(url, "fetch");
+                return Promise.reject(new Error("Blocked by Amir Shield: " + url));
+            }
+            return nativeFetch.apply(window, arguments);
+        };
+    }
+
+    /* ============ اعتراض XMLHttpRequest ============ */
+    var XO = XMLHttpRequest.prototype.open;
+    var XS = XMLHttpRequest.prototype.send;
+    XMLHttpRequest.prototype.open = function (method, url) {
+        this.__shieldUrl = url;
+        if (armed && isBlocked(url)) {
+            registerBlock(url, "xhr");
+            this.__shieldBlocked = true;
+            try { this.abort(); } catch (e) {}
+            return;
+        }
+        return XO.apply(this, arguments);
+    };
+    XMLHttpRequest.prototype.send = function () {
+        if (armed && (this.__shieldBlocked || isBlocked(this.__shieldUrl))) return;
+        return XS.apply(this, arguments);
+    };
+
+    /* ============ اعتراض WebSocket ============ */
+    var NativeWS = window.WebSocket;
+    if (NativeWS) {
+        var ShieldWS = function (url, protocols) {
+            if (armed && isBlocked(url)) {
+                registerBlock(url, "websocket");
+                throw new Error("Blocked by Amir Shield (WS): " + url);
+            }
+            return protocols ? new NativeWS(url, protocols) : new NativeWS(url);
+        };
+        ShieldWS.prototype = NativeWS.prototype;
+        window.WebSocket = ShieldWS;
+    }
+
+    /* ============ اعتراض sendBeacon ============ */
+    if (navigator.sendBeacon) {
+        var nativeBeacon = navigator.sendBeacon;
+        navigator.sendBeacon = function (url, data) {
+            if (armed && isBlocked(url)) {
+                registerBlock(url, "beacon");
+                return false;
+            }
+            return nativeBeacon.call(navigator, url, data);
+        };
+    }
+
+    /* ============ اعتراض window.open ============ */
+    var nativeOpen = window.open;
+    window.open = function (url) {
+        if (armed && isBlocked(url)) {
+            registerBlock(url, "window.open");
+            return null;
+        }
+        return nativeOpen.apply(window, arguments);
+    };
+
+    /* ============ اعتراض الروابط والنماذج ============ */
+    document.addEventListener("click", function (e) {
+        var el = e.target;
+        while (el && el.tagName && el.tagName.toLowerCase() !== "a") el = el.parentNode;
+        if (!el || !el.href) return;
+        if (armed && isBlocked(el.href)) {
+            e.preventDefault();
+            registerBlock(el.href, "link");
+        }
+    }, true);
+
+    document.addEventListener("submit", function (e) {
+        var f = e.target;
+        if (armed && f && isBlocked(f.action)) {
+            e.preventDefault();
+            registerBlock(f.action, "form");
+        }
+    }, true);
+
+    /* ============ حارس مغادرة الصفحة ============ */
+    window.onbeforeunload = function () {
+        if (!armed) return;
+        return "Shield active: leaving may expose the console to Sony servers.";
+    };
+
+    /* ============ null-routing burst ============ */
+    function nullRoutingBurst() {
+        var endpoints = [
+            "https://update.playstation.net/",
+            "https://ps4.updptl.sp-int.playstation.net/",
+            "https://sf.updptl.sp-int.playstation.net/",
+            "https://dcs.updptl.sp-int.playstation.net/",
+            "https://nsx.sec.np.dl.playstation.net/",
+            "https://gs-sec.ww.np.dl.playstation.net/",
+            "https://fupgw.playstation.net/",
+            "https://update.playstation.net/system/ps4/",
+            "https://ps4.updptl.sp-int.playstation.net/ps4/",
+            "https://sf.updptl.sp-int.playstation.net/ps4/"
+        ];
+        var ok = 0, fail = 0;
+        for (var i = 0; i < endpoints.length; i++) {
+            for (var r = 0; r < 2; r++) {
+                var url = endpoints[i] + "?cb=" + Date.now() + "_" + i + "_" + r;
+                try {
+                    if (nativeFetch) {
+                        nativeFetch(url, { mode: "no-cors", cache: "no-store" })
+                            .then(function () { ok++; })
+                            .catch(function () { fail++; });
+                    } else {
+                        var x = new XMLHttpRequest();
+                        x.open("GET", url, true);
+                        x.onerror = function () { fail++; };
+                        x.send();
+                    }
+                } catch (e) { fail++; }
+            }
+        }
+        return { sent: endpoints.length * 2 };
+    }
+
+    /* ============ Service Worker (حجب حقيقي داخل الصفحة إن دعمه المتصفح) ============ */
+    function tryServiceWorker() {
+        if (!("serviceWorker" in navigator)) return "unsupported";
+        var swCode =
+            "self.addEventListener('fetch', function(e){" +
+            "  var u = e.request.url.toLowerCase();" +
+            "  var b = ['playstation.net','playstation.com','sony.com','sonyentertainmentnetwork.com'];" +
+            "  for (var i=0;i<b.length;i++){ if (u.indexOf(b[i])!==-1){" +
+            "    e.respondWith(new Response('Blocked by Amir Shield',{status:403}));" +
+            "    return; } }" +
+            "});";
+        try {
+            var blob = new Blob([swCode], { type: "application/javascript" });
+            var swUrl = URL.createObjectURL(blob);
+            navigator.serviceWorker.register(swUrl).then(function () {
+                if (logLine) logLine.innerHTML += " · ServiceWorker: active";
+            }).catch(function () {
+                if (logLine) logLine.innerHTML += " · ServiceWorker: not permitted on this browser";
+            });
+            return "attempted";
+        } catch (e) {
+            return "failed";
+        }
+    }
+
+    /* ============ التفعيل ============ */
+    window.armShield = function () {
+        if (armed) return;
+        armed = true;
+
+        var btn = document.getElementById("activateBtn");
+        var notif = document.getElementById("goldhenNotif");
+        var notifDesc = document.getElementById("notifDesc");
+
+        btn.disabled = true;
+        btn.style.opacity = "0.5";
+        statusBox.className = "status-box";
+        statusBox.innerHTML = "Arming interception hooks...";
+
+        var sw = tryServiceWorker();
+        var burst = nullRoutingBurst();
+
+        setTimeout(function () {
+            statusBox.className = "status-box ok";
+            statusBox.innerHTML = "SHIELD ARMED · " + blockedCount +
+                " blocked · " + burst.sent + " null-routed · SW:" + sw;
+
+            notifDesc.innerHTML = "Environment Secured &amp; Coded by Amir";
+            notif.className = "goldhen-notification show";
+            setTimeout(function () { notif.className = "goldhen-notification"; }, 4500);
+
+            if (window.console && console.log) {
+                console.log("[Amir Shield] ARMED. All Sony domains intercepted in this context.");
+            }
+        }, 700);
+    };
+
+    if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", onReady);
+    } else {
+        onReady();
+    }
+})();
+</script>
+</body>
+</html>
